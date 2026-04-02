@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+//Authentication & Users 
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  phone         String?
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  lands         Land[]
+  cropPredictions CropPrediction[]
+  yieldPredictions YieldPrediction[]
+  fertilizerRecommendations FertilizerRecommendation[]
+}
+
+// Land / Plot Management 
+model Land {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name          String              // "North Field"
+  location      String              // "Punjab, India"
+  area          Float               // in acres
+  latitude      Float?
+  longitude     Float?
+
+  // Soil parameters (latest values)
+  nitrogen      Float               // mg/kg
+  phosphorus    Float               // mg/kg
+  potassium     Float               // mg/kg
+  ph            Float
+  soilType      String?             // "Sandy Loam", "Clay", etc.
+
+  // Climate defaults for this land
+  temperature   Float               // °C
+  humidity      Float               // %
+  rainfall      Float               // mm
+
+  isActive      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  soilHistory   SoilReading[]
+  cropPredictions CropPrediction[]
+  yieldPredictions YieldPrediction[]
+  fertilizerRecommendations FertilizerRecommendation[]
+}
+
+// Soil Reading History (NPK over time)
+model SoilReading {
+  id            String    @id @default(uuid())
+  landId        String
+  land          Land      @relation(fields: [landId], references: [id], onDelete: Cascade)
+
+  nitrogen      Float
+  phosphorus    Float
+  potassium     Float
+  ph            Float
+  temperature   Float
+  humidity      Float
+  rainfall      Float
+
+  recordedAt    DateTime  @default(now())
+}
+
+//Crop Prediction Results
+model CropPrediction {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  landId        String
+  land          Land      @relation(fields: [landId], references: [id], onDelete: Cascade)
+
+  // Input snapshot
+  nitrogen      Float
+  phosphorus    Float
+  potassium     Float
+  ph            Float
+  temperature   Float
+  humidity      Float
+  rainfall      Float
+
+  // Results
+  predictedCrop String              // "Rice"
+  confidence    Float               // 0-100%
+  alternativeCrops Json?            // [{ crop, confidence }]
+
+  createdAt     DateTime  @default(now())
+}
+
+// Yield Prediction Results 
+model YieldPrediction {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  landId        String
+  land          Land      @relation(fields: [landId], references: [id], onDelete: Cascade)
+
+  crop          String
+  season        String              // "Kharif", "Rabi", "Zaid"
+  area          Float
+
+  predictedYield Float              // in tonnes
+  createdAt      DateTime @default(now())
+}
+
+// Fertilizer Recommendations
+model FertilizerRecommendation {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  landId        String
+  land          Land      @relation(fields: [landId], references: [id], onDelete: Cascade)
+
+  crop          String
+  soilType      String
+
+  recommendedFertilizer String
+  nitrogenStatus  String            // "Low", "Normal", "High"
+  phosphorusStatus String
+  potassiumStatus  String
+  advice        String?             // detailed text advice
+
+  createdAt     DateTime  @default(now())
+}
