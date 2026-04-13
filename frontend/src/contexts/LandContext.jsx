@@ -1,70 +1,108 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 
-const defaultLands = [
-  {
-    id: "1",
-    name: "North Field",
-    location: "Punjab, India",
-    area: 12,
-    nitrogen: 90,
-    phosphorus: 42,
-    potassium: 43,
-    ph: 6.5,
-    temperature: 28,
-    humidity: 72,
-    rainfall: 200,
-  },
-  {
-    id: "2",
-    name: "River Plot",
-    location: "Haryana, India",
-    area: 8,
-    nitrogen: 45,
-    phosphorus: 55,
-    potassium: 20,
-    ph: 7.1,
-    temperature: 30,
-    humidity: 65,
-    rainfall: 150,
-  },
-];
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const LandContext = createContext(undefined);
 
+function authHeaders() {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 export function LandProvider({ children }) {
-  const [lands, setLands] = useState(defaultLands);
-  const [selectedLandId, setSelectedLandId] = useState(defaultLands[0].id);
+  const [lands,          setLands]          = useState([]);
+  const [selectedLandId, setSelectedLandId] = useState(null);
+  const [loading,        setLoading]        = useState(true);
 
-  const selectedLand = lands.find((l) => l.id === selectedLandId);
-
-  const addLand = (land) => {
-    const newLand = { ...land, id: Date.now().toString() };
-    setLands((prev) => [...prev, newLand]);
-  };
-
-  const updateLand = (id, data) => {
-    setLands((prev) => prev.map((l) => (l.id === id ? { ...l, ...data } : l)));
-  };
-
-  const deleteLand = (id) => {
-    setLands((prev) => prev.filter((l) => l.id !== id));
-    if (selectedLandId === id) {
-      setSelectedLandId(lands.find((l) => l.id !== id)?.id || "");
+  // ── Fetch all lands from the backend ─────────────────────────────────────
+  const fetchLands = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/lands`, { headers: authHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      setLands(data);
+      // Auto-select active land or first land
+      const active = data.find((l) => l.isActive) ?? data[0];
+      if (active) setSelectedLandId((prev) => prev ?? active.id);
+    } catch {
+      // silently fail (user not logged in yet, etc.)
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  const selectLand = (id) => setSelectedLandId(id);
+  useEffect(() => { fetchLands(); }, [fetchLands]);
+
+  // ── CRUD operations ───────────────────────────────────────────────────────
+  const addLand = useCallback(async (landData) => {
+    try {
+      const res = await fetch(`${API}/api/lands`, {
+        method:  "POST",
+        headers: authHeaders(),
+        body:    JSON.stringify(landData),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const newLand = await res.json();
+      setLands((prev) => [newLand, ...prev]);
+      if (!selectedLandId) setSelectedLandId(newLand.id);
+      return newLand;
+    } catch (e) {
+      throw e;
+    }
+  }, [selectedLandId]);
+
+  const updateLand = useCallback(async (id, data) => {
+    try {
+      const res = await fetch(`${API}/api/lands/${id}`, {
+        method:  "PUT",
+        headers: authHeaders(),
+        body:    JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const updated = await res.json();
+      setLands((prev) => prev.map((l) => (l.id === id ? updated : l)));
+      return updated;
+    } catch (e) {
+      throw e;
+    }
+  }, []);
+
+  const deleteLand = useCallback(async (id) => {
+    try {
+      const res = await fetch(`${API}/api/lands/${id}`, {
+        method:  "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setLands((prev) => {
+        const next = prev.filter((l) => l.id !== id);
+        if (selectedLandId === id) setSelectedLandId(next[0]?.id ?? null);
+        return next;
+      });
+    } catch (e) {
+      throw e;
+    }
+  }, [selectedLandId]);
+
+  const selectLand = useCallback((id) => setSelectedLandId(id), []);
+
+  const selectedLand = lands.find((l) => l.id === selectedLandId) ?? null;
 
   return (
     <LandContext.Provider
       value={{
         lands,
+        loading,
         selectedLandId,
         selectedLand,
         addLand,
         updateLand,
         deleteLand,
         selectLand,
+        refetch: fetchLands,
       }}
     >
       {children}

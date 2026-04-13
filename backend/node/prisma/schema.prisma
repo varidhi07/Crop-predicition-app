@@ -113,12 +113,13 @@ model YieldPrediction {
   landId        String
   land          Land      @relation(fields: [landId], references: [id], onDelete: Cascade)
 
-  crop          String
-  season        String              // "Kharif", "Rabi", "Zaid"
-  area          Float
+  crop             String
+  season           String              // "Kharif", "Rabi", "Zaid"
+  area             Float
 
-  predictedYield Float              // in tonnes
-  createdAt      DateTime @default(now())
+  predictedYield   Float              // in tonnes
+  soilQualityScore Float?             // 0-100 AI-inferred soil quality score
+  createdAt        DateTime @default(now())
 }
 
 // Fertilizer Recommendations
@@ -132,8 +133,14 @@ model FertilizerRecommendation {
   crop          String
   soilType      String
 
+  // Input snapshot
+  nitrogen      Float
+  phosphorus    Float
+  potassium     Float
+  ph            Float
+
   recommendedFertilizer String
-  nitrogenStatus  String            // "Low", "Normal", "High"
+  nitrogenStatus   String            // "Critical", "Low", "Normal", "High"
   phosphorusStatus String
   potassiumStatus  String
   advice        String?             // detailed text advice

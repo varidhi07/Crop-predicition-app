@@ -1,36 +1,31 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  Sprout,
-  FlaskConical,
-  BarChart3,
-  Cloud,
-  BrainCircuit,
-  ChevronLeft,
-  ChevronRight,
-  Leaf,
-  MapPin,
-  LogOut,
+  LayoutDashboard, Sprout, FlaskConical, BarChart3,
+  Cloud, BrainCircuit, ChevronLeft, ChevronRight,
+  Leaf, MapPin, LogOut,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
-  { title: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { title: "My Lands", path: "/lands", icon: MapPin },
-  { title: "Crop Prediction", path: "/crop-prediction", icon: Sprout },
-  { title: "Fertilizer", path: "/fertilizer", icon: FlaskConical },
-  { title: "Yield Prediction", path: "/yield-prediction", icon: BarChart3 },
-  { title: "Weather", path: "/weather", icon: Cloud },
-  { title: "Insights", path: "/insights", icon: BrainCircuit },
+  { title: "Dashboard",       path: "/dashboard",       icon: LayoutDashboard },
+  { title: "My Lands",        path: "/lands",           icon: MapPin          },
+  { title: "Crop Prediction", path: "/crop-prediction", icon: Sprout          },
+  { title: "Fertilizer",      path: "/fertilizer",      icon: FlaskConical    },
+  { title: "Yield Prediction",path: "/yield-prediction",icon: BarChart3       },
+  { title: "Weather",         path: "/weather",          icon: Cloud           },
+  { title: "Insights",        path: "/insights",         icon: BrainCircuit    },
 ];
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
+  const location  = useLocation();
+  const navigate  = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    navigate("/login");
+    logout();
+    navigate("/", { replace: true });
   };
 
   return (

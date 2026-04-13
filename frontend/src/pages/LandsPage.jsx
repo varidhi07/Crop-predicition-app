@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLand } from "@/contexts/LandContext";
-import { MapPin, Plus, Pencil, Trash2, Save, X } from "lucide-react";
+import { useWeather } from "@/hooks/useWeather";
+import { MapPin, Plus, Pencil, Trash2, Save, X, Loader2, LocateFixed } from "lucide-react";
 
 const fieldDefs = [
   { key: "name", label: "Land Name", type: "text", placeholder: "e.g. North Field" },
@@ -16,35 +17,70 @@ const fieldDefs = [
 ];
 
 const emptyForm = {
-  name: "", location: "", area: 0,
-  nitrogen: 0, phosphorus: 0, potassium: 0,
-  ph: 0, temperature: 0, humidity: 0, rainfall: 0,
+  name: "", location: "", area: "",
+  nitrogen: "", phosphorus: "", potassium: "",
+  ph: "",
+  // weather-derived: start blank so auto-fill is visible
+  temperature: "", humidity: "", rainfall: "",
 };
 
 export default function LandsPage() {
-  const { lands, addLand, updateLand, deleteLand, selectLand, selectedLandId } = useLand();
+  const { lands, loading, addLand, updateLand, deleteLand, selectLand, selectedLandId } = useLand();
+  const { weather, locationName, suggestedRainfall } = useWeather();
+
   const [editingId, setEditingId] = useState(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [showAdd,   setShowAdd]   = useState(false);
+  const [form,      setForm]      = useState(emptyForm);
+  const [saving,    setSaving]    = useState(false);
+  const [error,     setError]     = useState(null);
+
+  // Open Add form and pre-populate weather fields
+  const openAddForm = () => {
+    const hasWeather = weather != null;
+    setForm({
+      ...emptyForm,
+      location:    locationName ?? "",
+      temperature: hasWeather ? String(weather.temperature)        : "",
+      humidity:    hasWeather ? String(weather.humidity)           : "",
+      // Use regional annual average (IMD), not today's QPF
+      rainfall:    suggestedRainfall != null ? String(suggestedRainfall) : "",
+    });
+    setShowAdd(true);
+    setEditingId(null);
+    setError(null);
+  };
 
   const startEdit = (land) => {
     setEditingId(land.id);
-    const { id, ...rest } = land;
+    const { id, userId, createdAt, updatedAt, ...rest } = land;
     setForm(rest);
+    setError(null);
   };
 
-  const saveEdit = () => {
-    if (editingId) {
-      updateLand(editingId, form);
+  const saveEdit = async () => {
+    if (!editingId) return;
+    setSaving(true); setError(null);
+    try {
+      await updateLand(editingId, form);
       setEditingId(null);
-    }
+    } catch (e) { setError(e.message); }
+    finally { setSaving(false); }
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.name.trim()) return;
-    addLand(form);
-    setForm(emptyForm);
-    setShowAdd(false);
+    setSaving(true); setError(null);
+    try {
+      await addLand(form);
+      setForm(emptyForm);
+      setShowAdd(false);
+    } catch (e) { setError(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this land?")) return;
+    try { await deleteLand(id); } catch (e) { setError(e.message); }
   };
 
   const setField = (key, value) => {
@@ -54,6 +90,14 @@ export default function LandsPage() {
       [key]: numFields.includes(key) ? parseFloat(value) || 0 : value,
     }));
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -68,7 +112,7 @@ export default function LandsPage() {
           </p>
         </div>
         <button
-          onClick={() => { setShowAdd(true); setForm(emptyForm); setEditingId(null); }}
+          onClick={openAddForm}
           className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold btn-glow hover:bg-primary/90 transition-all flex items-center gap-2 text-sm"
         >
           <Plus className="w-4 h-4" />
@@ -76,14 +120,33 @@ export default function LandsPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+          {error}
+        </div>
+      )}
+
       {/* Add New Land Form */}
       {showAdd && (
         <div className="glass-card p-6 animate-slide-up">
-          <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">New Land</h3>
-            <button onClick={() => setShowAdd(false)} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-3">
+              {locationName && (
+                <span className="flex items-center gap-1 text-xs text-primary">
+                  <LocateFixed className="w-3 h-3" />
+                  {locationName}
+                  {suggestedRainfall != null && (
+                    <span className="text-muted-foreground ml-1">
+                      · rainfall: <strong className="text-primary">{suggestedRainfall} mm/yr</strong> (regional avg)
+                    </span>
+                  )}
+                </span>
+              )}
+              <button onClick={() => setShowAdd(false)} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {fieldDefs.map((f) => (
@@ -101,10 +164,11 @@ export default function LandsPage() {
           </div>
           <button
             onClick={handleAdd}
-            className="mt-4 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-all flex items-center gap-2 text-sm"
+            disabled={saving}
+            className="mt-4 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-all flex items-center gap-2 text-sm disabled:opacity-50"
           >
-            <Save className="w-4 h-4" />
-            Save Land
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {saving ? "Saving…" : "Save Land"}
           </button>
         </div>
       )}
@@ -132,8 +196,10 @@ export default function LandsPage() {
                   ))}
                 </div>
                 <div className="flex gap-2 mt-4">
-                  <button onClick={saveEdit} className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center gap-2 hover:bg-primary/90">
-                    <Save className="w-4 h-4" /> Save
+                  <button onClick={saveEdit} disabled={saving}
+                    className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center gap-2 hover:bg-primary/90 disabled:opacity-50">
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    {saving ? "Saving…" : "Save"}
                   </button>
                   <button onClick={() => setEditingId(null)} className="px-4 py-2 rounded-xl bg-secondary text-foreground text-sm hover:bg-secondary/80">
                     Cancel
