@@ -15,6 +15,7 @@ from routes.crop        import crop_bp
 from routes.yield_pred  import yield_bp
 from routes.fertilizer  import fertilizer_bp
 from routes.info        import info_bp
+from routes.chat        import chat_bp
 
 
 def create_app():
@@ -25,6 +26,7 @@ def create_app():
     app.register_blueprint(yield_bp)
     app.register_blueprint(fertilizer_bp)
     app.register_blueprint(info_bp)
+    app.register_blueprint(chat_bp)
 
     @app.route("/health", methods=["GET"])
     def health():

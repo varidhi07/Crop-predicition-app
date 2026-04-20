@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sprout, BarChart3, Cloud, MessageSquare, Leaf, ArrowRight, Zap, Shield, TrendingUp } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const features = [
   {
@@ -33,6 +34,13 @@ const stats = [
 ];
 
 export default function HomePage() {
+  const navigate   = useNavigate();
+  const { loginDemo } = useAuth();
+
+  const handleViewDemo = () => {
+    loginDemo();
+    navigate("/dashboard");
+  };
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Navbar */}
@@ -89,11 +97,14 @@ export default function HomePage() {
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
-            <Link to="/dashboard">
-              <Button variant="outline" size="lg" className="text-base px-8 h-12">
-                View Demo
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              size="lg"
+              className="text-base px-8 h-12"
+              onClick={handleViewDemo}
+            >
+              View Demo
+            </Button>
           </div>
         </div>
       </section>

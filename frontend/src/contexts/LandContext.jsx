@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -13,79 +14,96 @@ function authHeaders() {
 }
 
 export function LandProvider({ children }) {
+  const { user } = useAuth();                          // ← subscribe to auth
+
   const [lands,          setLands]          = useState([]);
   const [selectedLandId, setSelectedLandId] = useState(null);
-  const [loading,        setLoading]        = useState(true);
+  const [loading,        setLoading]        = useState(false);
 
-  // ── Fetch all lands from the backend ─────────────────────────────────────
+  // ── Fetch lands for the CURRENT user ────────────────────────────────────────
   const fetchLands = useCallback(async () => {
+    const token = localStorage.getItem("token");
+
+    // Demo users or unauthenticated: no backend call, just clear state
+    if (!token || token === "demo-token") {
+      setLands([]);
+      setSelectedLandId(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`${API}/api/lands`, { headers: authHeaders() });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setLands([]);
+        return;
+      }
       const data = await res.json();
       setLands(data);
-      // Auto-select active land or first land
+      // Auto-select first active land (or first land) for the new user
       const active = data.find((l) => l.isActive) ?? data[0];
-      if (active) setSelectedLandId((prev) => prev ?? active.id);
+      setSelectedLandId(active?.id ?? null);
     } catch {
-      // silently fail (user not logged in yet, etc.)
+      setLands([]);
     } finally {
       setLoading(false);
     }
+  }, []); // no deps – we call it imperatively when user changes
+
+  // ── Re-fetch (or clear) whenever the logged-in user changes ─────────────────
+  useEffect(() => {
+    if (!user) {
+      // Logged out → wipe immediately, no fetch
+      setLands([]);
+      setSelectedLandId(null);
+      setLoading(false);
+      return;
+    }
+    // New user logged in → clear stale data first, then fetch their lands
+    setLands([]);
+    setSelectedLandId(null);
+    fetchLands();
+  }, [user?.id]);   // keyed on user.id: fires on login, logout, and user switch
+
+  // ── CRUD operations ──────────────────────────────────────────────────────────
+  const addLand = useCallback(async (landData) => {
+    const res = await fetch(`${API}/api/lands`, {
+      method:  "POST",
+      headers: authHeaders(),
+      body:    JSON.stringify(landData),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    const newLand = await res.json();
+    setLands((prev) => [newLand, ...prev]);
+    setSelectedLandId((prev) => prev ?? newLand.id);
+    return newLand;
   }, []);
 
-  useEffect(() => { fetchLands(); }, [fetchLands]);
-
-  // ── CRUD operations ───────────────────────────────────────────────────────
-  const addLand = useCallback(async (landData) => {
-    try {
-      const res = await fetch(`${API}/api/lands`, {
-        method:  "POST",
-        headers: authHeaders(),
-        body:    JSON.stringify(landData),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      const newLand = await res.json();
-      setLands((prev) => [newLand, ...prev]);
-      if (!selectedLandId) setSelectedLandId(newLand.id);
-      return newLand;
-    } catch (e) {
-      throw e;
-    }
-  }, [selectedLandId]);
-
   const updateLand = useCallback(async (id, data) => {
-    try {
-      const res = await fetch(`${API}/api/lands/${id}`, {
-        method:  "PUT",
-        headers: authHeaders(),
-        body:    JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      const updated = await res.json();
-      setLands((prev) => prev.map((l) => (l.id === id ? updated : l)));
-      return updated;
-    } catch (e) {
-      throw e;
-    }
+    const res = await fetch(`${API}/api/lands/${id}`, {
+      method:  "PUT",
+      headers: authHeaders(),
+      body:    JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    const updated = await res.json();
+    setLands((prev) => prev.map((l) => (l.id === id ? updated : l)));
+    return updated;
   }, []);
 
   const deleteLand = useCallback(async (id) => {
-    try {
-      const res = await fetch(`${API}/api/lands/${id}`, {
-        method:  "DELETE",
-        headers: authHeaders(),
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      setLands((prev) => {
-        const next = prev.filter((l) => l.id !== id);
-        if (selectedLandId === id) setSelectedLandId(next[0]?.id ?? null);
-        return next;
-      });
-    } catch (e) {
-      throw e;
-    }
-  }, [selectedLandId]);
+    const res = await fetch(`${API}/api/lands/${id}`, {
+      method:  "DELETE",
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    setLands((prev) => {
+      const next = prev.filter((l) => l.id !== id);
+      setSelectedLandId((sel) => (sel === id ? (next[0]?.id ?? null) : sel));
+      return next;
+    });
+  }, []);
 
   const selectLand = useCallback((id) => setSelectedLandId(id), []);
 

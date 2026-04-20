@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLand } from "@/contexts/LandContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useWeather } from "@/hooks/useWeather";
 import { MapPin, Plus, Pencil, Trash2, Save, X, Loader2, LocateFixed } from "lucide-react";
 
@@ -26,6 +27,7 @@ const emptyForm = {
 
 export default function LandsPage() {
   const { lands, loading, addLand, updateLand, deleteLand, selectLand, selectedLandId } = useLand();
+  const { isDemoUser } = useAuth();
   const { weather, locationName, suggestedRainfall } = useWeather();
 
   const [editingId, setEditingId] = useState(null);
@@ -95,6 +97,27 @@ export default function LandsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Demo users: no real data
+  if (isDemoUser) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <div className="flex items-center gap-2 mb-6">
+          <MapPin className="w-6 h-6 text-primary" />
+          <h2 className="text-2xl font-bold text-foreground">My Lands</h2>
+        </div>
+        <div className="glass-card p-12 text-center">
+          <MapPin className="w-12 h-12 text-primary/40 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">Demo Mode — No Lands Yet</h3>
+          <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+            You're exploring as a demo user. Land data is user-specific and stored securely.
+            <br /><br />
+            <a href="/login" className="text-primary hover:underline font-medium">Create a free account</a> to add and manage your own farm lands.
+          </p>
+        </div>
       </div>
     );
   }
@@ -175,6 +198,21 @@ export default function LandsPage() {
 
       {/* Land Cards */}
       <div className="space-y-4">
+        {lands.length === 0 && !showAdd && (
+          <div className="glass-card p-12 text-center">
+            <MapPin className="w-12 h-12 text-primary/30 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No Lands Added Yet</h3>
+            <p className="text-muted-foreground text-sm mb-5">
+              Add your first farm land to start getting crop predictions, fertilizer recommendations, and yield estimates.
+            </p>
+            <button
+              onClick={openAddForm}
+              className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold btn-glow hover:bg-primary/90 transition-all flex items-center gap-2 text-sm mx-auto"
+            >
+              <Plus className="w-4 h-4" /> Add Your First Land
+            </button>
+          </div>
+        )}
         {lands.map((land) => (
           <div
             key={land.id}

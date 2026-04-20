@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export default function LoginPage() {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { login, register } = useAuth();
+  const { login, register, loginDemo } = useAuth();
 
   const from = location.state?.from?.pathname || "/dashboard";
 
@@ -28,10 +28,19 @@ export default function LoginPage() {
       await login(loginForm.email, loginForm.password);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err.message);
+      if (err.message === "Failed to fetch" || err.message.includes("NetworkError") || err.message.includes("fetch")) {
+        setError("Cannot reach the server. Is the Node backend running on port 5000?");
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemo = () => {
+    loginDemo();
+    navigate("/dashboard", { replace: true });
   };
 
   // ── Register ───────────────────────────────────────────────────────────────
@@ -146,6 +155,19 @@ export default function LoginPage() {
                 <Button type="submit" className="w-full btn-glow h-11 gap-2" disabled={loading}>
                   {loading ? "Signing in…" : <> Log in <ArrowRight className="w-4 h-4" /></>}
                 </Button>
+
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/50" /></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or</span></div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleDemo}
+                  className="w-full h-11 rounded-lg border border-border/60 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors flex items-center justify-center gap-2"
+                >
+                  🌱 Explore as Demo Farmer
+                </button>
               </form>
             </TabsContent>
 

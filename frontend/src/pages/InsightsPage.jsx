@@ -82,12 +82,18 @@ export default function InsightsPage() {
   ];
 
   const stats = modelStats ? [
-    { label: "Training Samples", value: modelStats.trainingsamples?.toLocaleString() ?? "—" },
-    { label: "Test Accuracy",    value: modelStats.testAccuracy   ? `${modelStats.testAccuracy}%` : "—" },
-    { label: "F1 Score",         value: modelStats.f1Score        ?? "—" },
-    { label: "Crops Supported",  value: modelStats.cropsSupported ?? supportedCrops.length },
-    { label: "Features Used",    value: modelStats.featuresUsed   ?? featureWeights.length },
-    { label: "Cross-Val Score",  value: modelStats.crossValScore  ?? "—" },
+    { label: "Total Samples",      value: modelStats.totalSamples?.toLocaleString()    ?? "—" },
+    { label: "Training Samples",   value: modelStats.trainingSamples?.toLocaleString() ?? "—" },
+    { label: "Test Samples",       value: modelStats.testSamples?.toLocaleString()      ?? "—" },
+    { label: "Test Accuracy",      value: modelStats.testAccuracy   ? `${modelStats.testAccuracy}%` : "—" },
+    { label: "F1 Score",           value: modelStats.f1Score        ?? "—" },
+    { label: "Crops Supported",    value: modelStats.cropsSupported ?? supportedCrops.length },
+    { label: "Raw Features",       value: modelStats.rawFeatures    ?? "—" },
+    { label: "Engineered Features",value: modelStats.engineeredFeatures ?? "—" },
+    { label: "Total Features",     value: modelStats.featuresUsed   ?? featureWeights.length },
+    { label: "Calibration Method", value: modelStats.calibrationMethod ?? "—" },
+    { label: "CV Folds",           value: modelStats.calibrationCV  ?? "—" },
+    { label: "Scaler",             value: modelStats.scaler         ?? "—" },
   ] : [];
 
   return (
@@ -186,6 +192,13 @@ export default function InsightsPage() {
             </div>
           ) : (
             <>
+              {/* Algorithm name badge */}
+              {modelStats?.algorithm && (
+                <div className="mb-4 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-medium flex items-center gap-2">
+                  <span className="text-base">🤖</span>
+                  {modelStats.algorithm}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 {stats.map((s) => (
                   <div key={s.label} className="p-4 rounded-xl bg-secondary/50">
